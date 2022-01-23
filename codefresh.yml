@@ -1,0 +1,51 @@
+version: '1.0'
+stages:
+  - prepare
+  - build
+  - test
+steps:
+  master_clone:
+    stage: prepare
+    title: Cloning master repository...
+    type: git-clone
+    repo: '${{CF_REPO_OWNER}}/${{CF_REPO_NAME}}'
+    revision: '${{CF_REVISION}}'
+    git: github
+  BuildingDockerImage:
+    stage: build
+    title: Building Docker Image
+    type: build
+    image_name: railsgoat
+    working_directory: ./
+    tag: '${{CF_BRANCH_TAG_NORMALIZED}}'
+    dockerfile: Dockerfile
+  RunningUnitTests:
+    stage: test
+    title: Running Unit Tests
+    image: '${{BuildingDockerImage}}'
+    commands: 
+      - rails db:migrate
+      - rails test
+  ScanningDependencies:
+    stage: test
+    title: Scanning Dependencies
+    image: '${{BuildingDockerImage}}'
+    commands: 
+      - gem install bundler-audit
+      - bundle-audit check --verbose --update
+  ScanningCode:
+    stage: test
+    title: Scanning Code
+    image: '${{BuildingDockerImage}}'
+    commands: 
+      - gem install brakeman
+      - brakeman
+  CreatingPR:
+    type: github-pr
+    arguments:
+      GITHUB_TOKEN: '${{GITHUB_TOKEN}}'
+      GITHUB_REPO_OWNER: '${{GITHUB_REPO_OWNER}}'
+      GITHUB_REPO_NAME: '${{GITHUB_REPO_NAME}}'
+      HEAD: '${{CF_BRANCH}}'
+      TITLE: 'Codefresh PR for ${{CF_BRANCH}}'
+      BASE: master 
