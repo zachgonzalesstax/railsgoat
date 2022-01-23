@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 version: '1.0'
 stages:
   - prepare
@@ -74,3 +75,81 @@ steps:
       HEAD: '${{CF_BRANCH}}'
       TITLE: 'Codefresh PR for ${{CF_BRANCH}}'
       BASE: master 
+=======
+version: '1.0'
+stages:
+  - prepare
+  - build
+  - test
+steps:
+  master_clone:
+    stage: prepare
+    title: Cloning master repository...
+    type: git-clone
+    repo: '${{CF_REPO_OWNER}}/${{CF_REPO_NAME}}'
+    revision: '${{CF_REVISION}}'
+    git: github
+    when:
+      condition:
+        all:
+          validateTargetBranch: '"${{CF_PULL_REQUEST_TARGET}}" == "master"'
+          validatePRAction: '''${{CF_PULL_REQUEST_ACTION}}'' == ''opened'''
+  BuildingDockerImage:
+    stage: build
+    title: Building Docker Image
+    type: build
+    image_name: railsgoat
+    working_directory: ./
+    tag: '${{CF_BRANCH_TAG_NORMALIZED}}'
+    dockerfile: Dockerfile
+    when:
+      condition:
+        all:
+          validateTargetBranch: '"${{CF_PULL_REQUEST_TARGET}}" == "master"'
+          validatePRAction: '''${{CF_PULL_REQUEST_ACTION}}'' == ''opened'''
+  RunningUnitTests:
+    stage: test
+    title: Running Unit Tests
+    image: '${{BuildingDockerImage}}'
+    commands: 
+      - rails db:migrate
+      - rails test
+    when:
+      condition:
+        all:
+          validateTargetBranch: '"${{CF_PULL_REQUEST_TARGET}}" == "master"'
+          validatePRAction: '''${{CF_PULL_REQUEST_ACTION}}'' == ''opened'''
+  ScanningDependencies:
+    stage: test
+    title: Scanning Dependencies
+    image: '${{BuildingDockerImage}}'
+    commands: 
+      - gem install bundler-audit
+      - bundle-audit check --verbose --update
+    when:
+      condition:
+        all:
+          validateTargetBranch: '"${{CF_PULL_REQUEST_TARGET}}" == "master"'
+          validatePRAction: '''${{CF_PULL_REQUEST_ACTION}}'' == ''opened'''
+  ScanningCode:
+    stage: test
+    title: Scanning Code
+    image: '${{BuildingDockerImage}}'
+    commands: 
+      - gem install brakeman
+      - brakeman
+    when:
+      condition:
+        all:
+          validateTargetBranch: '"${{CF_PULL_REQUEST_TARGET}}" == "master"'
+          validatePRAction: '''${{CF_PULL_REQUEST_ACTION}}'' == ''opened'''
+  CreatingPR:
+    type: github-pr
+    arguments:
+      GITHUB_TOKEN: '${{GITHUB_TOKEN}}'
+      GITHUB_REPO_OWNER: '${{GITHUB_REPO_OWNER}}'
+      GITHUB_REPO_NAME: '${{GITHUB_REPO_NAME}}'
+      HEAD: '${{CF_BRANCH}}'
+      TITLE: 'Codefresh PR for ${{CF_BRANCH}}'
+      BASE: master 
+>>>>>>> e6115508379387bb4d8b873f4ca1afd1fbabcd94
